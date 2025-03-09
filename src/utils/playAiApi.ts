@@ -12,9 +12,35 @@ export async function generateSpeechFromPlayAi(
   text: string, 
   progressCallback?: (progress: number) => void
 ): Promise<string> {
+  // Get the debug logger if available (using dynamic import to avoid circular dependencies)
+  const logToDebug = async (message: string, type: "info" | "error" | "success" | "warning" = "info") => {
+    try {
+      // Dynamically import to avoid circular dependency issues
+      const { useDebugLog } = await import("@/contexts/DebugLogContext");
+      // Only run this in a component context, ignore otherwise
+      if (typeof window !== "undefined") {
+        const debugLogger = window.__DEBUG_LOGGER__;
+        if (debugLogger && debugLogger.addLog) {
+          debugLogger.addLog(message, type);
+        }
+      }
+    } catch (e) {
+      // Silently fail if debug logger is not available
+      console.log("Debug logger not available:", e);
+    }
+  };
+  
+  // Initialize window global for debug logger
+  if (typeof window !== "undefined" && !window.__DEBUG_LOGGER__) {
+    window.__DEBUG_LOGGER__ = { addLog: (message: string, type: string) => {} };
+  }
+
   // Report initial progress
   if (progressCallback) progressCallback(10);
 
+  // Log API call start
+  logToDebug(`Starting Text-to-Speech API call to ${BACKEND_URL}`, "info");
+  
   toast({
     title: "Starting Text-to-Speech Generation",
     description: `Sending request to backend server at ${BACKEND_URL}...`,
@@ -23,9 +49,15 @@ export async function generateSpeechFromPlayAi(
 
   try {
     console.log(`Using backend server at: ${BACKEND_URL}`);
+    logToDebug(`Using backend server at: ${BACKEND_URL}`, "info");
     
     // Use our backend proxy to handle the Play.ai API call
-    // Note: We no longer send API keys in the request as they should be in the server's .env
+    logToDebug("Sending POST request to /api/generate-speech", "info");
+    logToDebug(`Request body: ${JSON.stringify({
+      text,
+      voiceId: "s3://voice-cloning-zero-shot/e040bd1b-f190-4bdb-83f0-75ef85b18f84/original/manifest.json"
+    })}`, "info");
+    
     const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
       method: "POST",
       headers: {
@@ -37,8 +69,12 @@ export async function generateSpeechFromPlayAi(
       }),
     });
 
+    logToDebug(`Response status: ${response.status}`, response.ok ? "success" : "error");
+
     if (!response.ok) {
       const errorData = await response.json();
+      logToDebug(`API error: ${JSON.stringify(errorData)}`, "error");
+      
       toast({
         title: "Text-to-Speech Error",
         description: `Status: ${response.status}\n${errorData.message || errorData.error || 'Unknown error'}`,
@@ -53,7 +89,10 @@ export async function generateSpeechFromPlayAi(
     if (progressCallback) progressCallback(40);
     
     // Get the task ID from the initial response
-    const { taskId } = await response.json();
+    const responseData = await response.json();
+    const { taskId } = responseData;
+    
+    logToDebug(`Task ID received: ${taskId}`, "success");
     
     toast({
       title: "Speech Generation Started",
@@ -73,6 +112,8 @@ export async function generateSpeechFromPlayAi(
         progressCallback(pollProgress);
       }
       
+      logToDebug(`Polling status attempt ${attempts + 1}/${maxAttempts}`, "info");
+      
       toast({
         title: "Checking Speech Status",
         description: `Attempt ${attempts + 1}/${maxAttempts}...`,
@@ -81,14 +122,21 @@ export async function generateSpeechFromPlayAi(
 
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      const statusResponse = await fetch(`${BACKEND_URL}/api/speech-status/${taskId}`);
+      const statusUrl = `${BACKEND_URL}/api/speech-status/${taskId}`;
+      logToDebug(`Checking status at: ${statusUrl}`, "info");
+      
+      const statusResponse = await fetch(statusUrl);
+      logToDebug(`Status response: ${statusResponse.status}`, statusResponse.ok ? "success" : "error");
 
       if (statusResponse.ok) {
         const statusData = await statusResponse.json();
+        logToDebug(`Status data: ${JSON.stringify(statusData)}`, "info");
         console.log("Status response:", statusData);
         
         if (statusData.status === "completed") {
           audioUrl = statusData.audioUrl;
+          logToDebug(`Audio URL received: ${audioUrl.substring(0, 30)}...`, "success");
+          
           toast({
             title: "Speech Generation Complete",
             description: "Your audio is ready!",
@@ -96,19 +144,26 @@ export async function generateSpeechFromPlayAi(
           });
           break;
         } else if (statusData.status === "failed") {
-          throw new Error(`Speech generation failed: ${statusData.error || 'Unknown error'}`);
+          const errorMsg = `Speech generation failed: ${statusData.error || 'Unknown error'}`;
+          logToDebug(errorMsg, "error");
+          throw new Error(errorMsg);
         }
       } else {
-        console.error("Error checking status:", await statusResponse.text());
+        const errorMsg = await statusResponse.text();
+        logToDebug(`Error checking status: ${errorMsg}`, "error");
+        console.error("Error checking status:", errorMsg);
       }
       
       attempts++;
     }
 
     if (!audioUrl) {
+      const timeoutMsg = "Failed to get audio URL after multiple attempts.";
+      logToDebug(timeoutMsg, "error");
+      
       toast({
         title: "Speech Generation Timeout",
-        description: "Failed to get audio URL after multiple attempts.",
+        description: timeoutMsg,
         variant: "destructive",
         duration: 8000,
       });
@@ -119,13 +174,20 @@ export async function generateSpeechFromPlayAi(
     if (progressCallback) progressCallback(85);
     
     // Download the audio file
-    const audioResponse = await fetch(`${BACKEND_URL}/api/download-audio?url=${encodeURIComponent(audioUrl)}`);
+    const downloadUrl = `${BACKEND_URL}/api/download-audio?url=${encodeURIComponent(audioUrl)}`;
+    logToDebug(`Downloading audio from: ${downloadUrl}`, "info");
+    
+    const audioResponse = await fetch(downloadUrl);
+    logToDebug(`Audio download response: ${audioResponse.status}`, audioResponse.ok ? "success" : "error");
     
     if (!audioResponse.ok) {
-      throw new Error(`Failed to download audio: ${audioResponse.status}`);
+      const errorMsg = `Failed to download audio: ${audioResponse.status}`;
+      logToDebug(errorMsg, "error");
+      throw new Error(errorMsg);
     }
     
     const audioBlob = await audioResponse.blob();
+    logToDebug(`Audio blob received: ${audioBlob.size} bytes`, "success");
     
     // Final progress update
     if (progressCallback) progressCallback(95);
@@ -134,19 +196,35 @@ export async function generateSpeechFromPlayAi(
       const reader = new FileReader();
       reader.onloadend = () => {
         if (progressCallback) progressCallback(100);
+        logToDebug("Audio data conversion complete", "success");
         resolve(reader.result as string);
       };
-      reader.onerror = reject;
+      reader.onerror = (error) => {
+        logToDebug(`FileReader error: ${error}`, "error");
+        reject(error);
+      };
       reader.readAsDataURL(audioBlob);
     });
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
+    logToDebug(`Error in generating speech: ${errorMsg}`, "error");
     console.error("Error in generating speech:", error);
+    
     toast({
       title: "Speech Generation Error",
-      description: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
+      description: `Error: ${errorMsg}`,
       variant: "destructive",
       duration: 10000,
     });
     throw error;
+  }
+}
+
+// Add this type declaration to avoid TypeScript errors
+declare global {
+  interface Window {
+    __DEBUG_LOGGER__?: {
+      addLog: (message: string, type: "info" | "error" | "success" | "warning") => void;
+    };
   }
 }

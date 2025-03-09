@@ -6,6 +6,7 @@ import ScriptUploader from "@/components/ScriptUploader";
 import SoundEffectsManager from "@/components/SoundEffectsManager";
 import AudioGenerator from "@/components/AudioGenerator";
 import { ProcessedScript, SoundEffect } from "@/types";
+import { useDebugLogger } from "@/hooks/use-debug-logger";
 
 enum Step {
   SCRIPT,
@@ -14,6 +15,9 @@ enum Step {
 }
 
 const Index = () => {
+  // Initialize the debug logger connection
+  useDebugLogger();
+  
   const [currentStep, setCurrentStep] = useState<Step>(Step.SCRIPT);
   const [script, setScript] = useState<ProcessedScript | null>(null);
   const [effects, setEffects] = useState<SoundEffect[]>([]);
@@ -139,6 +143,8 @@ const Index = () => {
           <p>Talkshow Soundscape Generator - Create professional talkshow audio with sound effects</p>
         </div>
       </footer>
+      
+      {/* Note: DebugLogger is now rendered in App.tsx */}
     </div>
   );
 };
