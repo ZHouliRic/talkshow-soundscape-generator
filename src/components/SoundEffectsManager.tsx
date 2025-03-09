@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileAudio, Plus, Trash2, Volume2 } from "lucide-react";
+import { Check, FileAudio, Plus, Trash2, Volume2 } from "lucide-react";
 import { SoundEffect } from "@/types";
 import { fileToBase64 } from "@/utils/audioUtils";
 import { hasEffectInScript } from "@/utils/scriptParser";
