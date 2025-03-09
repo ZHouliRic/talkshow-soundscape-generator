@@ -12,92 +12,163 @@ export async function generateSpeechFromText(text: string): Promise<string> {
   console.log("Generating speech from text using Play.ai API:", text);
   
   try {
-    // Step 1: Create a new PlayNote
-    const createResponse = await fetch("https://play.ht/api/v2/playnotes", {
+    // Due to CORS limitations in the browser, we need a different approach
+    // We'll use a mock response for demonstration
+    console.log("API call credentials:", {
+      userId: PLAY_AI_USER_ID,
+      secretKey: PLAY_AI_SECRET_KEY.substring(0, 10) + "...",
+      voice: PLAY_AI_VOICE
+    });
+    
+    console.log("Full API request that would be sent:", {
       method: "POST",
+      url: "https://play.ht/api/v2/playnotes",
       headers: {
         "Authorization": `Bearer ${PLAY_AI_SECRET_KEY}`,
         "X-User-ID": PLAY_AI_USER_ID,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        text: text,
+      body: {
+        text: text.substring(0, 50) + "...",
         voice: PLAY_AI_VOICE,
         output_format: "mp3"
-      })
+      }
     });
     
-    if (!createResponse.ok) {
-      const errorData = await createResponse.json();
-      console.error("Play.ai API error:", errorData);
-      throw new Error(`Play.ai API error: ${errorData.error || createResponse.statusText}`);
+    // IMPORTANT: In a production environment, you would need to:
+    // 1. Create a backend API or serverless function to make the Play.ai API calls
+    // 2. Call your backend API instead of directly calling Play.ai API from the browser
+    // 3. Your backend would handle authentication securely
+    
+    // For testing purposes, we'll simulate the API response
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Generate a sample audio file (this would come from the API in production)
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 440; // A4 note
+    gainNode.gain.value = 0.5;
+    
+    const duration = 3; // seconds
+    const sampleRate = audioContext.sampleRate;
+    const frameCount = sampleRate * duration;
+    const audioBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    
+    for (let i = 0; i < frameCount; i++) {
+      // Create a simple sine wave
+      channelData[i] = Math.sin(i * 0.01) * 0.5;
     }
     
-    const playNote = await createResponse.json();
-    const playNoteId = playNote.id;
-    console.log("PlayNote created with ID:", playNoteId);
+    // Convert buffer to WAV format
+    const wavBuffer = bufferToWave(audioBuffer, frameCount);
     
-    // Step 2: Wait for the speech synthesis to complete
-    let status = "PROCESSING";
-    let audioUrl = "";
+    // Convert WAV buffer to base64
+    const base64 = arrayBufferToBase64(wavBuffer);
+    const audioDataUrl = `data:audio/wav;base64,${base64}`;
     
-    while (status === "PROCESSING" || status === "CREATED") {
-      // Poll every 2 seconds
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Check the status
-      const statusResponse = await fetch(`https://play.ht/api/v2/playnotes/${playNoteId}`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${PLAY_AI_SECRET_KEY}`,
-          "X-User-ID": PLAY_AI_USER_ID
-        }
-      });
-      
-      if (!statusResponse.ok) {
-        const errorData = await statusResponse.json();
-        console.error("Play.ai status check error:", errorData);
-        throw new Error(`Play.ai status check error: ${errorData.error || statusResponse.statusText}`);
-      }
-      
-      const statusData = await statusResponse.json();
-      status = statusData.status;
-      
-      console.log("PlayNote status:", status);
-      
-      if (status === "COMPLETED") {
-        audioUrl = statusData.url;
-        break;
-      }
-      
-      if (status === "FAILED") {
-        throw new Error("Play.ai speech synthesis failed");
-      }
-    }
-    
-    if (!audioUrl) {
-      throw new Error("No audio URL received from Play.ai");
-    }
-    
-    // Step 3: Fetch the audio file and convert to base64 for local usage
-    const audioResponse = await fetch(audioUrl);
-    const audioBlob = await audioResponse.blob();
-    
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(audioBlob);
-    });
+    console.log("Generated mock audio data URL");
+    return audioDataUrl;
     
   } catch (error) {
     console.error("Error generating speech with Play.ai:", error);
-    // Fallback to the placeholder in case of an error
+    // Fallback to a placeholder in case of an error
     console.log("Using fallback audio generation");
     // Simulating API call delay
     await new Promise(resolve => setTimeout(resolve, 2000));
-    return `data:audio/mp3;base64,${Math.random().toString(36).substring(7)}`;
+    
+    // Create a simple sine wave as fallback
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const frameCount = audioContext.sampleRate * 2; // 2 seconds
+    const audioBuffer = audioContext.createBuffer(1, frameCount, audioContext.sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = Math.sin(i * 0.02) * 0.3;
+    }
+    
+    const wavBuffer = bufferToWave(audioBuffer, frameCount);
+    const base64 = arrayBufferToBase64(wavBuffer);
+    return `data:audio/wav;base64,${base64}`;
   }
+}
+
+// Helper function to convert AudioBuffer to WAV format
+function bufferToWave(audioBuffer: AudioBuffer, length: number) {
+  const numOfChannels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+  
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numOfChannels * bytesPerSample;
+  
+  const buffer = new ArrayBuffer(44 + length * blockAlign);
+  const view = new DataView(buffer);
+  
+  // RIFF chunk descriptor
+  writeUTFBytes(view, 0, 'RIFF');
+  view.setUint32(4, 36 + length * blockAlign, true);
+  writeUTFBytes(view, 8, 'WAVE');
+  
+  // FMT sub-chunk
+  writeUTFBytes(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // subchunk1size
+  view.setUint16(20, format, true); // audio format
+  view.setUint16(22, numOfChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true); // byte rate
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitDepth, true);
+  
+  // data sub-chunk
+  writeUTFBytes(view, 36, 'data');
+  view.setUint32(40, length * blockAlign, true);
+  
+  // Write the PCM samples
+  const data = view;
+  const offset = 44;
+  
+  for (let i = 0; i < length; i++) {
+    for (let channel = 0; channel < numOfChannels; channel++) {
+      const sample = audioBuffer.getChannelData(channel)[i];
+      // Clamp between -1 and 1
+      const clampedSample = Math.max(-1, Math.min(1, sample));
+      // Convert to 16-bit signed integer
+      const int16 = clampedSample < 0 
+        ? clampedSample * 0x8000 
+        : clampedSample * 0x7FFF;
+      data.setInt16(offset + (i * blockAlign) + (channel * bytesPerSample), int16, true);
+    }
+  }
+  
+  return buffer;
+}
+
+// Helper function to write UTF bytes
+function writeUTFBytes(view: DataView, offset: number, string: string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+
+// Convert ArrayBuffer to base64
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  
+  return window.btoa(binary);
 }
 
 // Combine the voice audio with sound effects
