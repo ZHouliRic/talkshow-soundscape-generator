@@ -106,11 +106,28 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
-app.listen(PORT, () => {
+// Start the server
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
   console.log('Available endpoints:');
   console.log('- POST /api/generate-speech');
   console.log('- GET /api/speech-status/:taskId');
   console.log('- GET /api/download-audio?url=URL');
   console.log('- GET /health');
+});
+
+// Handle server errors
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Please use a different port or close the application using this port.`);
+  } else {
+    console.error('Server error:', err.message);
+  }
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Promise Rejection:', reason);
+  // Don't exit the process, just log the error
 });
