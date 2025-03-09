@@ -22,11 +22,13 @@ export async function generateSpeechFromPlayAi(
 
   toast({
     title: "Starting Text-to-Speech Generation",
-    description: "Sending request to backend server...",
+    description: `Sending request to backend server at ${BACKEND_URL}...`,
     duration: 5000,
   });
 
   try {
+    console.log(`Using backend server at: ${BACKEND_URL}`);
+    
     // Use our backend proxy to handle the Play.ai API call
     const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
       method: "POST",
