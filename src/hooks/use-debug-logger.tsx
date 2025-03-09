@@ -15,6 +15,9 @@ export function useDebugLogger() {
       window.__DEBUG_LOGGER__ = {
         addLog: debugLog.addLog
       };
+      
+      // Log successful initialization
+      debugLog.addLog("Debug logger connected to global context", "success");
     }
     
     // Clean up on unmount
