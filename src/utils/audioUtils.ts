@@ -26,31 +26,82 @@ export async function generateSpeechFromText(text: string): Promise<string> {
   try {
     // Due to CORS limitations in the browser, we need a different approach
     // We'll use a mock response for demonstration
-    const requestBody = {
-      text: text,
-      voice: PLAY_AI_VOICE,
-      output_format: "mp3"
-    };
     
-    console.log("📤 Play.ai API Request that would be sent:");
-    console.log("- URL: https://play.ht/api/v2/playnotes");
-    console.log("- Method: POST");
-    console.log("- Headers:", {
-      "Authorization": `Bearer ${PLAY_AI_SECRET_KEY.substring(0, 5)}...${PLAY_AI_SECRET_KEY.substring(PLAY_AI_SECRET_KEY.length - 5)}`,
-      "X-User-ID": PLAY_AI_USER_ID,
-      "Content-Type": "application/json"
-    });
-    console.log("- Body:", requestBody);
+    // API documentation details for file upload endpoint
+    const API_ENDPOINT = "https://play.ht/api/v2/files";
+    const fileName = `script_${Date.now()}.txt`;
     
-    // Show API request toast
+    // Create a FormData object as per API docs
+    const formData = new FormData();
+    formData.append("file", new Blob([text], {type: 'text/plain'}), fileName);
+    formData.append("voice", PLAY_AI_VOICE);
+    formData.append("output_format", "mp3");
+    
     toast({
-      title: "Sending API Request",
-      description: `Endpoint: https://play.ht/api/v2/playnotes\nMethod: POST\nVoice: ${PLAY_AI_VOICE.split('/').pop()?.split('.')[0] || "Default"}`,
-      duration: 5000,
+      title: "Play.ai API Request Details",
+      description: `POST ${API_ENDPOINT}
+Content-Type: multipart/form-data
+Authorization: Bearer ${PLAY_AI_SECRET_KEY.substring(0, 5)}...
+X-User-ID: ${PLAY_AI_USER_ID}`,
+      duration: 10000,
+    });
+    
+    toast({
+      title: "Play.ai Request Payload",
+      description: `File: ${fileName}
+Voice: ${PLAY_AI_VOICE.split('/').slice(-2)[0]}
+Format: mp3`,
+      duration: 10000,
+    });
+    
+    // Log the FormData key/value pairs
+    const formDataEntries: string[] = [];
+    formData.forEach((value, key) => {
+      const valueStr = value instanceof Blob 
+        ? `[Blob ${value.size}b]` 
+        : value.toString().substring(0, 30) + (value.toString().length > 30 ? '...' : '');
+      formDataEntries.push(`${key}: ${valueStr}`);
+    });
+    
+    toast({
+      title: "FormData Content",
+      description: formDataEntries.join('\n'),
+      duration: 10000,
+    });
+    
+    // Expected API response toast
+    toast({
+      title: "Expected API Response (First Step)",
+      description: `{
+  "file_id": "648a5fc6f9abd902cbd3a69e",
+  "file_name": "${fileName}",
+  "duration": null,
+  "transcription": "${text.substring(0, 30)}...",
+  "has_transcription": false
+}`,
+      duration: 10000,
     });
     
     console.log("⏳ Simulating API call delay (3 seconds)...");
     await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Post-processing API calls that would follow in production
+    toast({
+      title: "Next Step: Convert API Call",
+      description: `POST https://play.ht/api/v2/tts
+Content-Type: application/json
+Authorization: Bearer ${PLAY_AI_SECRET_KEY.substring(0, 5)}...
+X-User-ID: ${PLAY_AI_USER_ID}
+
+Payload:
+{
+  "text": "${text.substring(0, 30)}...",
+  "voice": "${PLAY_AI_VOICE.split('/').slice(-2)[0]}",
+  "quality": "premium",
+  "output_format": "mp3"
+}`,
+      duration: 15000,
+    });
     
     // Show processing toast
     toast({
@@ -64,6 +115,14 @@ export async function generateSpeechFromText(text: string): Promise<string> {
     console.log("✅ Play.ai audio generation completed (simulated)");
     
     // Show completion toast
+    toast({
+      title: "Final Step: Audio Download",
+      description: `GET https://play.ht/api/v2/tts/{article_id}
+Authorization: Bearer ${PLAY_AI_SECRET_KEY.substring(0, 5)}...
+X-User-ID: ${PLAY_AI_USER_ID}`,
+      duration: 10000,
+    });
+    
     toast({
       title: "Audio Generation Complete",
       description: "Play.ai has successfully generated the audio (simulated)",
@@ -102,15 +161,11 @@ export async function generateSpeechFromText(text: string): Promise<string> {
     const audioDataUrl = `data:audio/wav;base64,${base64}`;
     
     console.log("✅ Generated mock audio data URL");
-    console.log("📣 IMPORTANT: In a production environment, you would need to:");
-    console.log("1. Create a backend API or serverless function to make the Play.ai API calls");
-    console.log("2. Call your backend API instead of directly calling Play.ai API from the browser");
-    console.log("3. Your backend would handle authentication securely");
     
     // Final toast with implementation notes
     toast({
       title: "Implementation Note",
-      description: "In production, use a backend API to handle Play.ai calls securely.",
+      description: "In production, a backend API is required to make these Play.ai API calls securely.",
       duration: 10000,
     });
     
