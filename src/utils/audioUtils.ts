@@ -1,6 +1,6 @@
-
 import { SoundEffect, ProcessedScript, GeneratedAudio } from "@/types";
 import { toast } from "@/hooks/use-toast";
+import { generateSpeechFromPlayAi } from "./playAiApi";
 
 // Play.ai credentials
 const PLAY_AI_USER_ID = "6XHeaUTSxmfV1JcYGQwjqmGP63u1";
@@ -24,153 +24,8 @@ export async function generateSpeechFromText(text: string): Promise<string> {
   });
   
   try {
-    // Due to CORS limitations in the browser, we need a different approach
-    // We'll use a mock response for demonstration
-    
-    // API documentation details for file upload endpoint
-    const API_ENDPOINT = "https://play.ht/api/v2/files";
-    const fileName = `script_${Date.now()}.txt`;
-    
-    // Create a FormData object as per API docs
-    const formData = new FormData();
-    formData.append("file", new Blob([text], {type: 'text/plain'}), fileName);
-    formData.append("voice", PLAY_AI_VOICE);
-    formData.append("output_format", "mp3");
-    
-    toast({
-      title: "Play.ai API Request Details",
-      description: `POST ${API_ENDPOINT}
-Content-Type: multipart/form-data
-Authorization: Bearer ${PLAY_AI_SECRET_KEY.substring(0, 5)}...
-X-User-ID: ${PLAY_AI_USER_ID}`,
-      duration: 10000,
-    });
-    
-    toast({
-      title: "Play.ai Request Payload",
-      description: `File: ${fileName}
-Voice: ${PLAY_AI_VOICE.split('/').slice(-2)[0]}
-Format: mp3`,
-      duration: 10000,
-    });
-    
-    // Log the FormData key/value pairs
-    const formDataEntries: string[] = [];
-    formData.forEach((value, key) => {
-      const valueStr = value instanceof Blob 
-        ? `[Blob ${value.size}b]` 
-        : value.toString().substring(0, 30) + (value.toString().length > 30 ? '...' : '');
-      formDataEntries.push(`${key}: ${valueStr}`);
-    });
-    
-    toast({
-      title: "FormData Content",
-      description: formDataEntries.join('\n'),
-      duration: 10000,
-    });
-    
-    // Expected API response toast
-    toast({
-      title: "Expected API Response (First Step)",
-      description: `{
-  "file_id": "648a5fc6f9abd902cbd3a69e",
-  "file_name": "${fileName}",
-  "duration": null,
-  "transcription": "${text.substring(0, 30)}...",
-  "has_transcription": false
-}`,
-      duration: 10000,
-    });
-    
-    console.log("⏳ Simulating API call delay (3 seconds)...");
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Post-processing API calls that would follow in production
-    toast({
-      title: "Next Step: Convert API Call",
-      description: `POST https://play.ht/api/v2/tts
-Content-Type: application/json
-Authorization: Bearer ${PLAY_AI_SECRET_KEY.substring(0, 5)}...
-X-User-ID: ${PLAY_AI_USER_ID}
-
-Payload:
-{
-  "text": "${text.substring(0, 30)}...",
-  "voice": "${PLAY_AI_VOICE.split('/').slice(-2)[0]}",
-  "quality": "premium",
-  "output_format": "mp3"
-}`,
-      duration: 15000,
-    });
-    
-    // Show processing toast
-    toast({
-      title: "Processing Request",
-      description: "Waiting for Play.ai to generate audio...",
-      duration: 5000,
-    });
-    
-    console.log("🔄 Play.ai API response would be received here");
-    console.log("🔄 Polling for completion would happen here");
-    console.log("✅ Play.ai audio generation completed (simulated)");
-    
-    // Show completion toast
-    toast({
-      title: "Final Step: Audio Download",
-      description: `GET https://play.ht/api/v2/tts/{article_id}
-Authorization: Bearer ${PLAY_AI_SECRET_KEY.substring(0, 5)}...
-X-User-ID: ${PLAY_AI_USER_ID}`,
-      duration: 10000,
-    });
-    
-    toast({
-      title: "Audio Generation Complete",
-      description: "Play.ai has successfully generated the audio (simulated)",
-      duration: 5000,
-    });
-    
-    // Generate a sample audio file (this would come from the API in production)
-    console.log("🎵 Generating fallback audio using Web Audio API");
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 440; // A4 note
-    gainNode.gain.value = 0.5;
-    
-    const duration = 3; // seconds
-    const sampleRate = audioContext.sampleRate;
-    const frameCount = sampleRate * duration;
-    const audioBuffer = audioContext.createBuffer(1, frameCount, sampleRate);
-    const channelData = audioBuffer.getChannelData(0);
-    
-    for (let i = 0; i < frameCount; i++) {
-      // Create a simple sine wave
-      channelData[i] = Math.sin(i * 0.01) * 0.5;
-    }
-    
-    // Convert buffer to WAV format
-    const wavBuffer = bufferToWave(audioBuffer, frameCount);
-    
-    // Convert WAV buffer to base64
-    const base64 = arrayBufferToBase64(wavBuffer);
-    const audioDataUrl = `data:audio/wav;base64,${base64}`;
-    
-    console.log("✅ Generated mock audio data URL");
-    
-    // Final toast with implementation notes
-    toast({
-      title: "Implementation Note",
-      description: "In production, a backend API is required to make these Play.ai API calls securely.",
-      duration: 10000,
-    });
-    
-    return audioDataUrl;
-    
+    // Attempt to make the actual API call using our new function
+    return await generateSpeechFromPlayAi(text);
   } catch (error) {
     console.error("❌ Error in Play.ai API process:", error);
     console.log("⚠️ Using fallback audio generation due to error");
@@ -183,23 +38,35 @@ X-User-ID: ${PLAY_AI_USER_ID}`,
       duration: 10000,
     });
     
-    // Simulating API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Create a simple sine wave as fallback
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const frameCount = audioContext.sampleRate * 2; // 2 seconds
-    const audioBuffer = audioContext.createBuffer(1, frameCount, audioContext.sampleRate);
-    const channelData = audioBuffer.getChannelData(0);
-    
-    for (let i = 0; i < frameCount; i++) {
-      channelData[i] = Math.sin(i * 0.02) * 0.3;
-    }
-    
-    const wavBuffer = bufferToWave(audioBuffer, frameCount);
-    const base64 = arrayBufferToBase64(wavBuffer);
-    return `data:audio/wav;base64,${base64}`;
+    // Fallback to local audio generation if the API call fails
+    return generateFallbackAudio();
   }
+}
+
+// Generate a fallback audio when the API call fails
+async function generateFallbackAudio(): Promise<string> {
+  toast({
+    title: "Generating Fallback Audio",
+    description: "Creating simple audio waveform as a placeholder",
+    duration: 5000,
+  });
+  
+  // Simulating API call delay
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Create a simple sine wave as fallback
+  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const frameCount = audioContext.sampleRate * 2; // 2 seconds
+  const audioBuffer = audioContext.createBuffer(1, frameCount, audioContext.sampleRate);
+  const channelData = audioBuffer.getChannelData(0);
+  
+  for (let i = 0; i < frameCount; i++) {
+    channelData[i] = Math.sin(i * 0.02) * 0.3;
+  }
+  
+  const wavBuffer = bufferToWave(audioBuffer, frameCount);
+  const base64 = arrayBufferToBase64(wavBuffer);
+  return `data:audio/wav;base64,${base64}`;
 }
 
 // Helper function to convert AudioBuffer to WAV format

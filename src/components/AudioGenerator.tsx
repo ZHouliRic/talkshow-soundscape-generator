@@ -20,6 +20,7 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
   const [generatedAudio, setGeneratedAudio] = useState<GeneratedAudio | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   
   // Get unique effect markers from the script
@@ -31,13 +32,19 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
   );
   
   const handleGenerate = async () => {
-    // No longer blocking generation if effects are missing
-    // as we'll use a fallback approach
+    // Reset states
     setIsGenerating(true);
     setCurrentStep(1);
+    setError(null);
     
     try {
       // Step 1: Generate voice audio
+      toast({
+        title: "Starting Audio Generation",
+        description: "Connecting to Play.ai API to generate speech...",
+        duration: 5000,
+      });
+      
       const voiceAudioUrl = await generateSpeechFromText(script.cleanedText);
       setCurrentStep(2);
       
@@ -60,6 +67,7 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
       }
     } catch (error) {
       console.error("Error generating audio:", error);
+      setError(error instanceof Error ? error.message : "Unknown error occurred");
       toast({
         title: "Generation failed",
         description: "There was an error generating your audio. Please try again.",
@@ -144,6 +152,22 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
               <p className="font-medium text-destructive">No sound effects uploaded</p>
               <p className="text-sm text-destructive/80">
                 Please upload at least one sound effect to continue.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {/* Display API error if any */}
+        {error && (
+          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex">
+            <AlertCircle className="text-destructive h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-destructive">API Error</p>
+              <p className="text-sm text-destructive/80">
+                {error}
+              </p>
+              <p className="text-sm text-destructive/80 mt-1">
+                Note: This may be due to CORS limitations. In a production environment, these requests should be made from a backend server.
               </p>
             </div>
           </div>
