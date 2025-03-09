@@ -9,41 +9,40 @@ const PLAY_AI_VOICE2 = "s3://voice-cloning-zero-shot/baf1ef41-36b6-428c-9bdf-50b
 
 // Generate speech using Play.ai API
 export async function generateSpeechFromText(text: string): Promise<string> {
-  console.log("Generating speech from text using Play.ai API:", text);
+  console.log("🔍 Starting Play.ai API call process for text:", text);
+  console.log("📝 Play.ai API Credentials:");
+  console.log(`- User ID: ${PLAY_AI_USER_ID}`);
+  console.log(`- Secret Key: ${PLAY_AI_SECRET_KEY.substring(0, 5)}...${PLAY_AI_SECRET_KEY.substring(PLAY_AI_SECRET_KEY.length - 5)}`);
+  console.log(`- Voice: ${PLAY_AI_VOICE}`);
   
   try {
     // Due to CORS limitations in the browser, we need a different approach
     // We'll use a mock response for demonstration
-    console.log("API call credentials:", {
-      userId: PLAY_AI_USER_ID,
-      secretKey: PLAY_AI_SECRET_KEY.substring(0, 10) + "...",
-      voice: PLAY_AI_VOICE
+    const requestBody = {
+      text: text,
+      voice: PLAY_AI_VOICE,
+      output_format: "mp3"
+    };
+    
+    console.log("📤 Play.ai API Request that would be sent:");
+    console.log("- URL: https://play.ht/api/v2/playnotes");
+    console.log("- Method: POST");
+    console.log("- Headers:", {
+      "Authorization": `Bearer ${PLAY_AI_SECRET_KEY.substring(0, 5)}...${PLAY_AI_SECRET_KEY.substring(PLAY_AI_SECRET_KEY.length - 5)}`,
+      "X-User-ID": PLAY_AI_USER_ID,
+      "Content-Type": "application/json"
     });
+    console.log("- Body:", requestBody);
     
-    console.log("Full API request that would be sent:", {
-      method: "POST",
-      url: "https://play.ht/api/v2/playnotes",
-      headers: {
-        "Authorization": `Bearer ${PLAY_AI_SECRET_KEY}`,
-        "X-User-ID": PLAY_AI_USER_ID,
-        "Content-Type": "application/json"
-      },
-      body: {
-        text: text.substring(0, 50) + "...",
-        voice: PLAY_AI_VOICE,
-        output_format: "mp3"
-      }
-    });
-    
-    // IMPORTANT: In a production environment, you would need to:
-    // 1. Create a backend API or serverless function to make the Play.ai API calls
-    // 2. Call your backend API instead of directly calling Play.ai API from the browser
-    // 3. Your backend would handle authentication securely
-    
-    // For testing purposes, we'll simulate the API response
+    console.log("⏳ Simulating API call delay (3 seconds)...");
     await new Promise(resolve => setTimeout(resolve, 3000));
     
+    console.log("🔄 Play.ai API response would be received here");
+    console.log("🔄 Polling for completion would happen here");
+    console.log("✅ Play.ai audio generation completed (simulated)");
+    
     // Generate a sample audio file (this would come from the API in production)
+    console.log("🎵 Generating fallback audio using Web Audio API");
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
@@ -73,13 +72,17 @@ export async function generateSpeechFromText(text: string): Promise<string> {
     const base64 = arrayBufferToBase64(wavBuffer);
     const audioDataUrl = `data:audio/wav;base64,${base64}`;
     
-    console.log("Generated mock audio data URL");
+    console.log("✅ Generated mock audio data URL");
+    console.log("📣 IMPORTANT: In a production environment, you would need to:");
+    console.log("1. Create a backend API or serverless function to make the Play.ai API calls");
+    console.log("2. Call your backend API instead of directly calling Play.ai API from the browser");
+    console.log("3. Your backend would handle authentication securely");
+    
     return audioDataUrl;
     
   } catch (error) {
-    console.error("Error generating speech with Play.ai:", error);
-    // Fallback to a placeholder in case of an error
-    console.log("Using fallback audio generation");
+    console.error("❌ Error in Play.ai API process:", error);
+    console.log("⚠️ Using fallback audio generation due to error");
     // Simulating API call delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -177,10 +180,14 @@ export async function combineAudioWithEffects(
   script: ProcessedScript,
   effects: SoundEffect[]
 ): Promise<GeneratedAudio> {
-  console.log("Combining audio with effects:", {
-    voiceAudioUrl,
-    script,
-    effects
+  console.log("🔊 Combining audio with effects:", {
+    voiceAudioUrl: voiceAudioUrl.substring(0, 30) + "...",
+    script: {
+      originalText: script.originalText.substring(0, 30) + "...",
+      cleanedText: script.cleanedText.substring(0, 30) + "...",
+      effects: script.effects.length
+    },
+    effectsCount: effects.length
   });
   
   // Check if we have at least one effect to use as fallback
@@ -188,17 +195,20 @@ export async function combineAudioWithEffects(
   const fallbackEffect = hasFallbackEffect ? effects[0] : null;
   
   // Process each effect in the script
-  console.log("Processing script effects with fallback support");
+  console.log("🔄 Processing script effects with fallback support");
   for (const scriptEffect of script.effects) {
     // Try to find matching effect
     const matchingEffect = effects.find(
       effect => effect.marker.toLowerCase() === scriptEffect.marker.toLowerCase()
     );
     
-    if (!matchingEffect && fallbackEffect) {
-      // If no matching effect but we have a fallback, use it
-      console.log(`Using fallback effect for: [${scriptEffect.marker}]`);
+    if (matchingEffect) {
+      console.log(`✅ Found matching effect for: [${scriptEffect.marker}]`);
+    } else if (fallbackEffect) {
+      console.log(`⚠️ Using fallback effect for: [${scriptEffect.marker}]`);
       // In a real implementation, this would apply the fallback effect at the specific position
+    } else {
+      console.log(`❌ No effect found for: [${scriptEffect.marker}] and no fallback available`);
     }
   }
   
@@ -206,7 +216,10 @@ export async function combineAudioWithEffects(
   // to process and combine the audio files. For simplicity, we're just returning the voice audio.
   
   // Simulating processing delay
+  console.log("⏳ Simulating audio processing delay (3 seconds)...");
   await new Promise(resolve => setTimeout(resolve, 3000));
+  
+  console.log("✅ Audio processing complete (simulated)");
   
   // In a real implementation, this would process and combine the audio
   return {
