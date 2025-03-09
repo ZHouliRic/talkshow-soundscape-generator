@@ -12,12 +12,15 @@ export function useDebugLogger() {
   useEffect(() => {
     // Set up global access to debug logger
     if (typeof window !== 'undefined') {
-      window.__DEBUG_LOGGER__ = {
-        addLog: debugLog.addLog
-      };
-      
-      // Log successful initialization
-      debugLog.addLog("Debug logger connected to global context", "success");
+      // Only set the logger if it doesn't already exist
+      if (!window.__DEBUG_LOGGER__) {
+        window.__DEBUG_LOGGER__ = {
+          addLog: debugLog.addLog
+        };
+        
+        // Log successful initialization once
+        debugLog.addLog("Debug logger connected to global context", "success");
+      }
     }
     
     // Clean up on unmount
@@ -26,7 +29,7 @@ export function useDebugLogger() {
         window.__DEBUG_LOGGER__ = undefined;
       }
     };
-  }, [debugLog]);
+  }, [debugLog]); // Add debugLog as dependency to prevent useEffect issues
   
   return debugLog;
 }

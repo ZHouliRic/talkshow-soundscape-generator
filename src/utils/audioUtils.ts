@@ -1,4 +1,3 @@
-
 import { SoundEffect, ProcessedScript, GeneratedAudio } from "@/types";
 import { toast } from "@/hooks/use-toast";
 import { generateSpeechFromPlayAi } from "./playAiApi";
@@ -15,10 +14,6 @@ export async function generateSpeechFromText(
   progressCallback?: (progress: number) => void
 ): Promise<string> {
   console.log("🔍 Starting Play.ai API call process for text:", text);
-  console.log("📝 Play.ai API Credentials:");
-  console.log(`- User ID: ${PLAY_AI_USER_ID}`);
-  console.log(`- Secret Key: ${PLAY_AI_SECRET_KEY.substring(0, 5)}...${PLAY_AI_SECRET_KEY.substring(PLAY_AI_SECRET_KEY.length - 5)}`);
-  console.log(`- Voice: ${PLAY_AI_VOICE}`);
   
   // Show initial toast notification
   toast({

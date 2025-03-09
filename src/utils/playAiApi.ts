@@ -53,9 +53,13 @@ export async function generateSpeechFromPlayAi(
     
     // Use our backend proxy to handle the Play.ai API call
     logToDebug("Sending POST request to /api/generate-speech", "info");
+    
+    // Standard voice ID for Play.ai - can be changed if needed
+    const voiceId = "s3://voice-cloning-zero-shot/e040bd1b-f190-4bdb-83f0-75ef85b18f84/original/manifest.json";
+    
     logToDebug(`Request body: ${JSON.stringify({
       text,
-      voiceId: "s3://voice-cloning-zero-shot/e040bd1b-f190-4bdb-83f0-75ef85b18f84/original/manifest.json"
+      voiceId
     })}`, "info");
     
     const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
@@ -65,7 +69,7 @@ export async function generateSpeechFromPlayAi(
       },
       body: JSON.stringify({
         text,
-        voiceId: "s3://voice-cloning-zero-shot/e040bd1b-f190-4bdb-83f0-75ef85b18f84/original/manifest.json"
+        voiceId
       }),
     });
 
@@ -135,7 +139,7 @@ export async function generateSpeechFromPlayAi(
         
         if (statusData.status === "completed") {
           audioUrl = statusData.audioUrl;
-          logToDebug(`Audio URL received: ${audioUrl.substring(0, 30)}...`, "success");
+          logToDebug(`Audio URL received: ${audioUrl ? (audioUrl.substring(0, 30) + "...") : "undefined"}`, "success");
           
           toast({
             title: "Speech Generation Complete",
