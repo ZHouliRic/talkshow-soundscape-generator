@@ -10,7 +10,10 @@ const PLAY_AI_VOICE = "s3://voice-cloning-zero-shot/e040bd1b-f190-4bdb-83f0-75ef
  * Generate speech using Play.ai API by making the actual API call
  * Note: This requires proper CORS handling, which typically requires a backend
  */
-export async function generateSpeechFromPlayAi(text: string): Promise<string> {
+export async function generateSpeechFromPlayAi(
+  text: string, 
+  progressCallback?: (progress: number) => void
+): Promise<string> {
   const API_ENDPOINT = "https://play.ht/api/v2/files";
   const fileName = `script_${Date.now()}.txt`;
 
@@ -19,6 +22,9 @@ export async function generateSpeechFromPlayAi(text: string): Promise<string> {
   formData.append("file", new Blob([text], {type: 'text/plain'}), fileName);
   formData.append("voice", PLAY_AI_VOICE);
   formData.append("output_format", "mp3");
+
+  // Report initial progress
+  if (progressCallback) progressCallback(10);
 
   // Log request details
   toast({
@@ -51,6 +57,9 @@ export async function generateSpeechFromPlayAi(text: string): Promise<string> {
 
     const fileData = await response.json();
     
+    // Update progress after file upload
+    if (progressCallback) progressCallback(30);
+    
     toast({
       title: "File Upload Successful",
       description: `File ID: ${fileData.file_id}\nFile Name: ${fileData.file_name}`,
@@ -71,6 +80,9 @@ export async function generateSpeechFromPlayAi(text: string): Promise<string> {
       description: `API Endpoint: ${ttsEndpoint}`,
       duration: 5000,
     });
+    
+    // Update progress before TTS conversion
+    if (progressCallback) progressCallback(40);
 
     const ttsResponse = await fetch(ttsEndpoint, {
       method: "POST",
@@ -95,6 +107,9 @@ export async function generateSpeechFromPlayAi(text: string): Promise<string> {
 
     const ttsData = await ttsResponse.json();
     const articleId = ttsData.id;
+    
+    // Update progress after TTS request
+    if (progressCallback) progressCallback(50);
 
     toast({
       title: "TTS Conversion Initiated",
@@ -108,6 +123,12 @@ export async function generateSpeechFromPlayAi(text: string): Promise<string> {
     const maxAttempts = 20;
 
     while (!audioUrl && attempts < maxAttempts) {
+      // Update progress during polling (from 50% to 80%)
+      if (progressCallback) {
+        const pollProgress = 50 + Math.min(30, (attempts / maxAttempts) * 30);
+        progressCallback(pollProgress);
+      }
+      
       toast({
         title: "Checking Audio Status",
         description: `Attempt ${attempts + 1}/${maxAttempts}...`,
@@ -149,13 +170,22 @@ export async function generateSpeechFromPlayAi(text: string): Promise<string> {
       throw new Error("Audio generation timed out");
     }
 
+    // Update progress before downloading audio
+    if (progressCallback) progressCallback(85);
+    
     // Download the audio file and convert to base64
     const audioResponse = await fetch(audioUrl);
     const audioBlob = await audioResponse.blob();
     
+    // Final progress update
+    if (progressCallback) progressCallback(95);
+    
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
+      reader.onloadend = () => {
+        if (progressCallback) progressCallback(100);
+        resolve(reader.result as string);
+      };
       reader.onerror = reject;
       reader.readAsDataURL(audioBlob);
     });

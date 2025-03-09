@@ -7,6 +7,7 @@ import { generateSpeechFromText, combineAudioWithEffects, downloadAudio } from "
 import { getUniqueEffectsFromScript } from "@/utils/scriptParser";
 import { Check, Download, AlertCircle, Play, Loader2, Music } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
 
 interface AudioGeneratorProps {
   script: ProcessedScript;
@@ -21,6 +22,7 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [apiProgress, setApiProgress] = useState(0);
   const { toast } = useToast();
   
   // Get unique effect markers from the script
@@ -36,6 +38,7 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
     setIsGenerating(true);
     setCurrentStep(1);
     setError(null);
+    setApiProgress(0);
     
     try {
       // Step 1: Generate voice audio
@@ -45,7 +48,9 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
         duration: 5000,
       });
       
-      const voiceAudioUrl = await generateSpeechFromText(script.cleanedText);
+      const voiceAudioUrl = await generateSpeechFromText(script.cleanedText, (progress) => {
+        setApiProgress(progress);
+      });
       setCurrentStep(2);
       
       // Step 2: Combine with sound effects
@@ -75,6 +80,7 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
       });
     } finally {
       setIsGenerating(false);
+      setApiProgress(100); // Ensure progress shows complete even on error
     }
   };
   
@@ -173,7 +179,7 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
           </div>
         )}
         
-        {/* Generation progress */}
+        {/* Generation progress with progress bar */}
         {isGenerating && (
           <div className="space-y-4">
             <div className="flex items-center">
@@ -188,9 +194,17 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
                   <span className="text-sm font-medium text-primary">1</span>
                 )}
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="font-medium">Generating voice audio</p>
                 <p className="text-sm text-muted-foreground">Using Play.ai to generate speech</p>
+                {currentStep === 1 && (
+                  <div className="mt-2">
+                    <Progress value={apiProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {apiProgress < 100 ? 'Processing...' : 'Complete'} ({Math.round(apiProgress)}%)
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -206,9 +220,17 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
                   <span className="text-sm font-medium text-primary">2</span>
                 )}
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="font-medium">Adding sound effects</p>
                 <p className="text-sm text-muted-foreground">Combining voice with your sound effects</p>
+                {currentStep === 2 && (
+                  <div className="mt-2">
+                    <Progress value={apiProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {apiProgress < 100 ? 'Processing...' : 'Complete'} ({Math.round(apiProgress)}%)
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             

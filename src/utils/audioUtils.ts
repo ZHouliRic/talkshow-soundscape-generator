@@ -1,3 +1,4 @@
+
 import { SoundEffect, ProcessedScript, GeneratedAudio } from "@/types";
 import { toast } from "@/hooks/use-toast";
 import { generateSpeechFromPlayAi } from "./playAiApi";
@@ -9,7 +10,10 @@ const PLAY_AI_VOICE = "s3://voice-cloning-zero-shot/e040bd1b-f190-4bdb-83f0-75ef
 const PLAY_AI_VOICE2 = "s3://voice-cloning-zero-shot/baf1ef41-36b6-428c-9bdf-50ba54682bd8/original/manifest.json";
 
 // Generate speech using Play.ai API
-export async function generateSpeechFromText(text: string): Promise<string> {
+export async function generateSpeechFromText(
+  text: string, 
+  progressCallback?: (progress: number) => void
+): Promise<string> {
   console.log("🔍 Starting Play.ai API call process for text:", text);
   console.log("📝 Play.ai API Credentials:");
   console.log(`- User ID: ${PLAY_AI_USER_ID}`);
@@ -23,9 +27,12 @@ export async function generateSpeechFromText(text: string): Promise<string> {
     duration: 5000,
   });
   
+  // Initialize progress
+  if (progressCallback) progressCallback(5);
+  
   try {
     // Attempt to make the actual API call using our new function
-    return await generateSpeechFromPlayAi(text);
+    return await generateSpeechFromPlayAi(text, progressCallback);
   } catch (error) {
     console.error("❌ Error in Play.ai API process:", error);
     console.log("⚠️ Using fallback audio generation due to error");
@@ -39,20 +46,24 @@ export async function generateSpeechFromText(text: string): Promise<string> {
     });
     
     // Fallback to local audio generation if the API call fails
-    return generateFallbackAudio();
+    return generateFallbackAudio(progressCallback);
   }
 }
 
 // Generate a fallback audio when the API call fails
-async function generateFallbackAudio(): Promise<string> {
+async function generateFallbackAudio(progressCallback?: (progress: number) => void): Promise<string> {
   toast({
     title: "Generating Fallback Audio",
     description: "Creating simple audio waveform as a placeholder",
     duration: 5000,
   });
   
+  if (progressCallback) progressCallback(25);
+  
   // Simulating API call delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  if (progressCallback) progressCallback(50);
   
   // Create a simple sine wave as fallback
   const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -64,8 +75,13 @@ async function generateFallbackAudio(): Promise<string> {
     channelData[i] = Math.sin(i * 0.02) * 0.3;
   }
   
+  if (progressCallback) progressCallback(75);
+  
   const wavBuffer = bufferToWave(audioBuffer, frameCount);
   const base64 = arrayBufferToBase64(wavBuffer);
+  
+  if (progressCallback) progressCallback(100);
+  
   return `data:audio/wav;base64,${base64}`;
 }
 
