@@ -17,12 +17,29 @@ app.use(express.json());
 // Play.ai API endpoints
 const API_BASE_URL = 'https://play.ht/api/v2';
 
+// Validate required environment variables
+if (!process.env.PLAY_AI_USER_ID || !process.env.PLAY_AI_SECRET_KEY) {
+  console.error('⚠️ Required environment variables are missing!');
+  console.error('Make sure to copy .env.example to .env and fill in PLAY_AI_USER_ID and PLAY_AI_SECRET_KEY');
+}
+
 // Route to handle speech generation
 app.post('/api/generate-speech', async (req, res) => {
   try {
-    const { text, voiceId, userId, apiKey } = req.body;
+    const { text, voiceId } = req.body;
+    // Use API credentials from environment variables, fallback to request body if not available
+    const userId = process.env.PLAY_AI_USER_ID || req.body.userId;
+    const apiKey = process.env.PLAY_AI_SECRET_KEY || req.body.apiKey;
+    
+    if (!userId || !apiKey) {
+      return res.status(400).json({ 
+        error: 'Missing credentials', 
+        message: 'PLAY_AI_USER_ID and PLAY_AI_SECRET_KEY must be provided in .env file or request body' 
+      });
+    }
     
     console.log('Generating speech for text:', text.substring(0, 50) + '...');
+    console.log('Using voice ID:', voiceId);
     
     // Make request to Play.ai API
     const response = await axios.post(`${API_BASE_URL}/tts`, {
@@ -42,9 +59,13 @@ app.post('/api/generate-speech', async (req, res) => {
     res.json({ taskId: response.data.id });
   } catch (error) {
     console.error('Error generating speech:', error.response?.data || error.message);
+    
+    // Provide more detailed error information to client
+    const errorDetails = error.response?.data || { error: error.message };
     res.status(500).json({ 
       error: 'Failed to generate speech', 
-      details: error.response?.data || error.message 
+      details: errorDetails,
+      message: error.message
     });
   }
 });
@@ -53,8 +74,16 @@ app.post('/api/generate-speech', async (req, res) => {
 app.get('/api/speech-status/:taskId', async (req, res) => {
   try {
     const { taskId } = req.params;
-    const userId = req.query.userId || process.env.PLAY_AI_USER_ID;
-    const apiKey = req.query.apiKey || process.env.PLAY_AI_SECRET_KEY;
+    // Use API credentials from environment variables
+    const userId = process.env.PLAY_AI_USER_ID || req.query.userId;
+    const apiKey = process.env.PLAY_AI_SECRET_KEY || req.query.apiKey;
+    
+    if (!userId || !apiKey) {
+      return res.status(400).json({ 
+        error: 'Missing credentials', 
+        message: 'PLAY_AI_USER_ID and PLAY_AI_SECRET_KEY must be provided in .env file or query parameters' 
+      });
+    }
     
     console.log(`Checking status for task: ${taskId}`);
     
@@ -103,7 +132,14 @@ app.get('/api/download-audio', async (req, res) => {
 
 // Simple health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running' });
+  res.json({ 
+    status: 'ok', 
+    message: 'Server is running',
+    playAiCredentials: {
+      userId: process.env.PLAY_AI_USER_ID ? 'Configured' : 'Missing',
+      apiKey: process.env.PLAY_AI_SECRET_KEY ? 'Configured' : 'Missing'
+    }
+  });
 });
 
 // Start the server
@@ -114,6 +150,10 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log('- GET /api/speech-status/:taskId');
   console.log('- GET /api/download-audio?url=URL');
   console.log('- GET /health');
+  console.log('');
+  console.log('Play.ai credentials status:');
+  console.log(`- User ID: ${process.env.PLAY_AI_USER_ID ? 'Configured ✅' : 'Missing ❌'}`);
+  console.log(`- API Key: ${process.env.PLAY_AI_SECRET_KEY ? 'Configured ✅' : 'Missing ❌'}`);
 });
 
 // Handle server errors

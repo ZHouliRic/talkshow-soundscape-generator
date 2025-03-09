@@ -1,11 +1,6 @@
 
 import { toast } from "@/hooks/use-toast";
 
-// Play.ai credentials
-const PLAY_AI_USER_ID = "6XHeaUTSxmfV1JcYGQwjqmGP63u1";
-const PLAY_AI_SECRET_KEY = "ak-f2c7fd4b13954e5793237eb62d86d3da";
-const PLAY_AI_VOICE = "s3://voice-cloning-zero-shot/e040bd1b-f190-4bdb-83f0-75ef85b18f84/original/manifest.json";
-
 // Backend server URL - defaults to local development server
 // In production, this would be your deployed backend URL
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
@@ -30,6 +25,7 @@ export async function generateSpeechFromPlayAi(
     console.log(`Using backend server at: ${BACKEND_URL}`);
     
     // Use our backend proxy to handle the Play.ai API call
+    // Note: We no longer send API keys in the request as they should be in the server's .env
     const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
       method: "POST",
       headers: {
@@ -37,21 +33,20 @@ export async function generateSpeechFromPlayAi(
       },
       body: JSON.stringify({
         text,
-        voiceId: PLAY_AI_VOICE,
-        userId: PLAY_AI_USER_ID,
-        apiKey: PLAY_AI_SECRET_KEY
+        voiceId: "s3://voice-cloning-zero-shot/e040bd1b-f190-4bdb-83f0-75ef85b18f84/original/manifest.json"
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
+      const errorData = await response.json();
       toast({
         title: "Text-to-Speech Error",
-        description: `Status: ${response.status}\n${errorText.substring(0, 100)}${errorText.length > 100 ? '...' : ''}`,
+        description: `Status: ${response.status}\n${errorData.message || errorData.error || 'Unknown error'}`,
         variant: "destructive",
         duration: 10000,
       });
-      throw new Error(`API call failed: ${response.status}`);
+      console.error("Backend API error details:", errorData);
+      throw new Error(`API call failed: ${response.status} - ${errorData.message || errorData.error}`);
     }
 
     // Update progress as the backend processes the request
@@ -90,6 +85,8 @@ export async function generateSpeechFromPlayAi(
 
       if (statusResponse.ok) {
         const statusData = await statusResponse.json();
+        console.log("Status response:", statusData);
+        
         if (statusData.status === "completed") {
           audioUrl = statusData.audioUrl;
           toast({
@@ -98,7 +95,11 @@ export async function generateSpeechFromPlayAi(
             duration: 5000,
           });
           break;
+        } else if (statusData.status === "failed") {
+          throw new Error(`Speech generation failed: ${statusData.error || 'Unknown error'}`);
         }
+      } else {
+        console.error("Error checking status:", await statusResponse.text());
       }
       
       attempts++;
@@ -119,6 +120,11 @@ export async function generateSpeechFromPlayAi(
     
     // Download the audio file
     const audioResponse = await fetch(`${BACKEND_URL}/api/download-audio?url=${encodeURIComponent(audioUrl)}`);
+    
+    if (!audioResponse.ok) {
+      throw new Error(`Failed to download audio: ${audioResponse.status}`);
+    }
+    
     const audioBlob = await audioResponse.blob();
     
     // Final progress update
