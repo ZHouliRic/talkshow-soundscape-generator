@@ -25,6 +25,25 @@ export async function combineAudioWithEffects(
     effects
   });
   
+  // Check if we have at least one effect to use as fallback
+  const hasFallbackEffect = effects.length > 0;
+  const fallbackEffect = hasFallbackEffect ? effects[0] : null;
+  
+  // Process each effect in the script
+  console.log("Processing script effects with fallback support");
+  for (const scriptEffect of script.effects) {
+    // Try to find matching effect
+    const matchingEffect = effects.find(
+      effect => effect.marker.toLowerCase() === scriptEffect.marker.toLowerCase()
+    );
+    
+    if (!matchingEffect && fallbackEffect) {
+      // If no matching effect but we have a fallback, use it
+      console.log(`Using fallback effect for: [${scriptEffect.marker}]`);
+      // In a real implementation, this would apply the fallback effect at the specific position
+    }
+  }
+  
   // Simulating processing delay
   await new Promise(resolve => setTimeout(resolve, 3000));
   

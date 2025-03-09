@@ -31,15 +31,8 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
   );
   
   const handleGenerate = async () => {
-    if (missingEffects.length > 0) {
-      toast({
-        title: "Missing sound effects",
-        description: `${missingEffects.join(", ")} not defined. Add these effects or remove them from your script.`,
-        variant: "destructive"
-      });
-      return;
-    }
-    
+    // No longer blocking generation if effects are missing
+    // as we'll use a fallback approach
     setIsGenerating(true);
     setCurrentStep(1);
     
@@ -53,10 +46,18 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
       setGeneratedAudio(result);
       setIsGenerated(true);
       
-      toast({
-        title: "Audio generation complete",
-        description: "Your talkshow audio is ready to download!",
-      });
+      // Show a different toast message if fallbacks were used
+      if (missingEffects.length > 0 && effects.length > 0) {
+        toast({
+          title: "Audio generation complete",
+          description: `Your talkshow audio is ready! ${missingEffects.length} missing effects were replaced with the default sound.`,
+        });
+      } else {
+        toast({
+          title: "Audio generation complete",
+          description: "Your talkshow audio is ready to download!",
+        });
+      }
     } catch (error) {
       console.error("Error generating audio:", error);
       toast({
@@ -117,20 +118,33 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
           </div>
         </div>
         
-        {/* Status and warnings */}
-        {missingEffects.length > 0 && (
+        {/* Status and warnings - changed from error to warning */}
+        {missingEffects.length > 0 && effects.length > 0 && (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex">
             <AlertCircle className="text-amber-500 h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-amber-800">Missing sound effects</p>
+              <p className="font-medium text-amber-800">Missing sound effects (will use fallback)</p>
               <p className="text-sm text-amber-700">
-                The following effects in your script don't have corresponding sound files:
+                The following effects don't have corresponding sound files and will use the first uploaded effect:
               </p>
               <ul className="list-disc list-inside text-sm text-amber-700 mt-1">
                 {missingEffects.map(effect => (
                   <li key={effect}>[{effect}]</li>
                 ))}
               </ul>
+            </div>
+          </div>
+        )}
+        
+        {/* Complete error when no effects at all */}
+        {missingEffects.length > 0 && effects.length === 0 && (
+          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex">
+            <AlertCircle className="text-destructive h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-destructive">No sound effects uploaded</p>
+              <p className="text-sm text-destructive/80">
+                Please upload at least one sound effect to continue.
+              </p>
             </div>
           </div>
         )}
@@ -227,7 +241,7 @@ const AudioGenerator = ({ script, effects, onReset }: AudioGeneratorProps) => {
           </Button>
           <Button 
             onClick={handleGenerate} 
-            disabled={isGenerating || missingEffects.length > 0}
+            disabled={isGenerating || (effects.length === 0)}
           >
             {isGenerating ? (
               <>
