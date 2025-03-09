@@ -1,5 +1,6 @@
 
 import { SoundEffect, ProcessedScript, GeneratedAudio } from "@/types";
+import { toast } from "@/hooks/use-toast";
 
 // Play.ai credentials
 const PLAY_AI_USER_ID = "6XHeaUTSxmfV1JcYGQwjqmGP63u1";
@@ -14,6 +15,13 @@ export async function generateSpeechFromText(text: string): Promise<string> {
   console.log(`- User ID: ${PLAY_AI_USER_ID}`);
   console.log(`- Secret Key: ${PLAY_AI_SECRET_KEY.substring(0, 5)}...${PLAY_AI_SECRET_KEY.substring(PLAY_AI_SECRET_KEY.length - 5)}`);
   console.log(`- Voice: ${PLAY_AI_VOICE}`);
+  
+  // Show initial toast notification
+  toast({
+    title: "Starting Play.ai API Call",
+    description: "Preparing to generate speech...",
+    duration: 5000,
+  });
   
   try {
     // Due to CORS limitations in the browser, we need a different approach
@@ -34,12 +42,33 @@ export async function generateSpeechFromText(text: string): Promise<string> {
     });
     console.log("- Body:", requestBody);
     
+    // Show API request toast
+    toast({
+      title: "Sending API Request",
+      description: `Endpoint: https://play.ht/api/v2/playnotes\nMethod: POST\nVoice: ${PLAY_AI_VOICE.split('/').pop()?.split('.')[0] || "Default"}`,
+      duration: 5000,
+    });
+    
     console.log("⏳ Simulating API call delay (3 seconds)...");
     await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Show processing toast
+    toast({
+      title: "Processing Request",
+      description: "Waiting for Play.ai to generate audio...",
+      duration: 5000,
+    });
     
     console.log("🔄 Play.ai API response would be received here");
     console.log("🔄 Polling for completion would happen here");
     console.log("✅ Play.ai audio generation completed (simulated)");
+    
+    // Show completion toast
+    toast({
+      title: "Audio Generation Complete",
+      description: "Play.ai has successfully generated the audio (simulated)",
+      duration: 5000,
+    });
     
     // Generate a sample audio file (this would come from the API in production)
     console.log("🎵 Generating fallback audio using Web Audio API");
@@ -78,11 +107,27 @@ export async function generateSpeechFromText(text: string): Promise<string> {
     console.log("2. Call your backend API instead of directly calling Play.ai API from the browser");
     console.log("3. Your backend would handle authentication securely");
     
+    // Final toast with implementation notes
+    toast({
+      title: "Implementation Note",
+      description: "In production, use a backend API to handle Play.ai calls securely.",
+      duration: 10000,
+    });
+    
     return audioDataUrl;
     
   } catch (error) {
     console.error("❌ Error in Play.ai API process:", error);
     console.log("⚠️ Using fallback audio generation due to error");
+    
+    // Error toast
+    toast({
+      title: "API Error",
+      description: "Error in Play.ai API process. Using fallback audio generation.",
+      variant: "destructive",
+      duration: 10000,
+    });
+    
     // Simulating API call delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -190,12 +235,24 @@ export async function combineAudioWithEffects(
     effectsCount: effects.length
   });
   
+  // Show toast for audio combining process
+  toast({
+    title: "Combining Audio",
+    description: `Processing script with ${script.effects.length} sound effects`,
+    duration: 5000,
+  });
+  
   // Check if we have at least one effect to use as fallback
   const hasFallbackEffect = effects.length > 0;
   const fallbackEffect = hasFallbackEffect ? effects[0] : null;
   
   // Process each effect in the script
   console.log("🔄 Processing script effects with fallback support");
+  
+  let matchedEffects = 0;
+  let fallbackEffects = 0;
+  let missingEffects = 0;
+  
   for (const scriptEffect of script.effects) {
     // Try to find matching effect
     const matchingEffect = effects.find(
@@ -204,22 +261,35 @@ export async function combineAudioWithEffects(
     
     if (matchingEffect) {
       console.log(`✅ Found matching effect for: [${scriptEffect.marker}]`);
+      matchedEffects++;
     } else if (fallbackEffect) {
       console.log(`⚠️ Using fallback effect for: [${scriptEffect.marker}]`);
-      // In a real implementation, this would apply the fallback effect at the specific position
+      fallbackEffects++;
     } else {
       console.log(`❌ No effect found for: [${scriptEffect.marker}] and no fallback available`);
+      missingEffects++;
     }
   }
   
-  // Note: In a complete implementation, you would use the Web Audio API or a library
-  // to process and combine the audio files. For simplicity, we're just returning the voice audio.
+  // Show toast with effect processing summary
+  toast({
+    title: "Effects Processing",
+    description: `Matched: ${matchedEffects}, Using fallback: ${fallbackEffects}, Missing: ${missingEffects}`,
+    duration: 5000,
+  });
   
   // Simulating processing delay
   console.log("⏳ Simulating audio processing delay (3 seconds)...");
   await new Promise(resolve => setTimeout(resolve, 3000));
   
   console.log("✅ Audio processing complete (simulated)");
+  
+  // Show completion toast
+  toast({
+    title: "Audio Processing Complete",
+    description: "Your talkshow audio is ready!",
+    duration: 5000,
+  });
   
   // In a real implementation, this would process and combine the audio
   return {
