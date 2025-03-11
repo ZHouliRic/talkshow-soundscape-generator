@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Check, FileAudio, Plus, Trash2, Volume2 } from "lucide-react";
+import { Check, Clock, FileAudio, Plus, Trash2, Volume2 } from "lucide-react";
 import { SoundEffect } from "@/types";
 import { fileToBase64 } from "@/utils/audioUtils";
-import { hasEffectInScript } from "@/utils/scriptParser";
+import { hasEffectInScript, parseScript } from "@/utils/scriptParser";
 
 interface SoundEffectsManagerProps {
   scriptText: string;
@@ -19,7 +19,10 @@ const SoundEffectsManager = ({ scriptText, onEffectsReady }: SoundEffectsManager
   const [effects, setEffects] = useState<SoundEffect[]>([]);
   const [currentMarker, setCurrentMarker] = useState("");
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
-
+  
+  // Parse the script to get effect timestamps
+  const parsedScript = parseScript(scriptText);
+  
   const handleAddEffect = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -28,11 +31,17 @@ const SoundEffectsManager = ({ scriptText, onEffectsReady }: SoundEffectsManager
     
     if (!file || !currentMarker.trim()) return;
     
+    // Find timestamp for this marker if it exists in the script
+    const effectInScript = parsedScript.effects.find(
+      effect => effect.marker.toLowerCase() === currentMarker.trim().toLowerCase()
+    );
+    
     const newEffect: SoundEffect = {
       id: `effect-${Date.now()}`,
       name: file.name,
       file,
-      marker: currentMarker.trim()
+      marker: currentMarker.trim(),
+      timestamp: effectInScript?.timestamp
     };
     
     // Create a preview URL for the audio file
@@ -68,6 +77,25 @@ const SoundEffectsManager = ({ scriptText, onEffectsReady }: SoundEffectsManager
 
   const isEffectInScript = (marker: string) => {
     return hasEffectInScript(scriptText, marker);
+  };
+
+  // 获取效果的时间戳信息
+  const getEffectTimestamp = (marker: string): number | undefined => {
+    const effectInScript = parsedScript.effects.find(
+      effect => effect.marker.toLowerCase() === marker.toLowerCase()
+    );
+    return effectInScript?.timestamp;
+  };
+
+  // 将时间戳格式化为分:秒
+  const formatTimestamp = (timestamp?: number): string => {
+    if (timestamp === undefined) return "未知";
+    
+    const minutes = Math.floor(timestamp / 60);
+    const seconds = Math.floor(timestamp % 60);
+    const tenths = Math.floor((timestamp % 1) * 10);
+    
+    return `${minutes}:${seconds.toString().padStart(2, '0')}.${tenths}`;
   };
 
   return (
@@ -114,6 +142,7 @@ const SoundEffectsManager = ({ scriptText, onEffectsReady }: SoundEffectsManager
                   <TableHead>Marker</TableHead>
                   <TableHead>Sound File</TableHead>
                   <TableHead>Preview</TableHead>
+                  <TableHead>Timestamp</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -135,6 +164,12 @@ const SoundEffectsManager = ({ scriptText, onEffectsReady }: SoundEffectsManager
                       >
                         <Volume2 className="h-4 w-4" />
                       </Button>
+                    </TableCell>
+                    <TableCell>
+                      <span className="flex items-center">
+                        <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
+                        {formatTimestamp(getEffectTimestamp(effect.marker))}
+                      </span>
                     </TableCell>
                     <TableCell>
                       {isEffectInScript(effect.marker) ? (

@@ -4,6 +4,7 @@ export interface SoundEffect {
   name: string;
   file: File;
   marker: string;
+  timestamp?: number; // 添加可选的时间戳字段
 }
 
 export interface ProcessedScript {
@@ -13,6 +14,7 @@ export interface ProcessedScript {
     marker: string;
     position: number;
     original: string;
+    timestamp: number; // 新增的时间戳字段
   }[];
 }
 
